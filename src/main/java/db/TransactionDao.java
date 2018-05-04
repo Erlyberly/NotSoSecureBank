@@ -66,4 +66,20 @@ public class TransactionDao {
             }
         }
     }
+
+    public void deleteTransactions(String email) throws SQLException {
+        try (MethodTimer timer = new MethodTimer(TransactionDao.class, "deleteTransactions")) {
+            Connection connection = Db.instance().getConnection();
+            try {
+                PreparedStatement statement = connection.prepareStatement("DELETE FROM transaction WHERE from_email=? OR to_email=? and NOT text='Startgave'");
+                statement.setString(1, email);
+                statement.setString(2, email);
+                int result = statement.executeUpdate();
+                statement.close();
+                log.info("Deleted transactions " + (result == 1 ? "ok" : "failed"));
+            } finally {
+                connection.close();
+            }
+        }
+    }
 }

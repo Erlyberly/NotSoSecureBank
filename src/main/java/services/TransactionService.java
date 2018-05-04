@@ -8,14 +8,7 @@ import java.sql.SQLException;
 import java.util.List;
 import util.Logger;
 import javax.servlet.http.HttpServletRequest;
-import javax.ws.rs.Consumes;
-import javax.ws.rs.GET;
-import javax.ws.rs.NotAuthorizedException;
-import javax.ws.rs.POST;
-import javax.ws.rs.Path;
-import javax.ws.rs.PathParam;
-import javax.ws.rs.Produces;
-import javax.ws.rs.ServerErrorException;
+import javax.ws.rs.*;
 import javax.ws.rs.core.Context;
 import javax.ws.rs.core.Response;
 
@@ -25,7 +18,7 @@ import javax.ws.rs.core.Response;
  */
 @Path("user/{email}/transaction")
 public class TransactionService {
-    
+
     private static final Logger log = Logger.getLogger();
 
     private UserDao userDao = new UserDao();
@@ -36,36 +29,82 @@ public class TransactionService {
 
     @POST
     @Consumes("application/json")
-    public void add(Transaction transaction) {       
+    public void add(Transaction transaction) {
+        log.info("Adding transaction from " + transaction.getFromEmail() + " with amount " + transaction.getAmount());
+
         // Check that the transaction sender is the logged user
-        Session session = (Session)request.getSession().getAttribute("session");
-        if(!transaction.getFromEmail().equals(session.getEmail())) {
+        Session session = (Session) request.getSession().getAttribute("session");
+        if (!transaction.getFromEmail().equals(session.getEmail())) {
             throw new NotAuthorizedException("Cannot access this account", Response.Status.FORBIDDEN);
         }
-        
+
+        checkTransactionAmount(transaction);
+
         // Add transaction
         try {
             transactionDao.addTransaction(transaction);
-            log.info("Added transaction!");        
-        } catch(SQLException e) {
+            log.info("Added transaction!");
+        } catch (SQLException e) {
             log.error("Failed to add transaction", e);
             throw new ServerErrorException("Failed to add transaction", Response.Status.INTERNAL_SERVER_ERROR, e);
         }
     }
 
+    private void checkTransactionAmount(Transaction transaction) {
+        // Check if transaction amount is ok
+        double currentBalance = getCurrentBalance(transaction.getFromEmail());
+        boolean isFamily = isFamily(transaction);
+        boolean isOverDrawn = currentBalance < 0;
+        boolean balanceWillBeUnderLimit = (currentBalance - transaction.getAmount()) < 5000;
+
+        log.info("Current balance=" + currentBalance + ", isFamily=" + isFamily);
+
+        boolean ok = (!isFamily && !isOverDrawn && !balanceWillBeUnderLimit) || (isFamily && !(isOverDrawn && balanceWillBeUnderLimit));
+
+        if (!ok) {
+            log.info("Transaction was not accepted");
+            throw new BadRequestException("Transaction amount was too large");
+        }
+    }
+
+    private double getCurrentBalance(String fromEmail) {
+        try {
+            double balance = 0;
+            List<Transaction> transactions = transactionDao.getTransactions(fromEmail);
+            for (Transaction t : transactions) {
+                if (t.getFromEmail().equals(fromEmail)) {
+                    balance -= t.getAmount();
+                } else {
+                    balance += t.getAmount();
+                }
+            }
+            return balance;
+        } catch (SQLException e) {
+            log.error("Failed to add transaction", e);
+            throw new ServerErrorException("Failed to add transaction", Response.Status.INTERNAL_SERVER_ERROR, e);
+        }
+    }
+
+    // Dummy method to determine whether sender and receiver of payment is in the same family
+    private boolean isFamily(Transaction transaction) {
+        String toDomain = transaction.getToEmail().substring(transaction.getToEmail().indexOf("@"));
+        String fromDomain = transaction.getFromEmail().substring(transaction.getFromEmail().indexOf("@"));
+        return toDomain.equals(fromDomain);
+    }
+
     @GET
     @Produces("application/json")
-    public List<Transaction> get(@PathParam("email") String currentUserEmail) {       
+    public List<Transaction> get(@PathParam("email") String currentUserEmail) {
         // Check that it is the logged user's account that is being accessed
-        Session session = (Session)request.getSession().getAttribute("session");
-        if(!currentUserEmail.equals(session.getEmail())) {
+        Session session = (Session) request.getSession().getAttribute("session");
+        if (!currentUserEmail.equals(session.getEmail())) {
             throw new NotAuthorizedException("Cannot access this account", Response.Status.FORBIDDEN);
         }
-        
+
         // Get transaction
         try {
             return transactionDao.getTransactions(currentUserEmail);
-        } catch(SQLException e) {
+        } catch (SQLException e) {
             log.error("Failed to read user transactions", e);
             throw new ServerErrorException("Failed to read user transactions", Response.Status.INTERNAL_SERVER_ERROR, e);
         }
