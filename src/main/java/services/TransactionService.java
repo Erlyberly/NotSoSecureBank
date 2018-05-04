@@ -109,4 +109,22 @@ public class TransactionService {
             throw new ServerErrorException("Failed to read user transactions", Response.Status.INTERNAL_SERVER_ERROR, e);
         }
     }
+
+    @DELETE
+    public void delete(@PathParam("email") String currentUserEmail) {
+        // Check that it is the logged user's account that is being accessed
+        Session session = (Session)request.getSession().getAttribute("session");
+        if(!currentUserEmail.equals(session.getEmail())) {
+            throw new NotAuthorizedException("Cannot access this account", Response.Status.FORBIDDEN);
+        }
+
+        // Get transaction
+        try {
+            transactionDao.deleteTransactions(currentUserEmail);
+            log.info("Deleted transactions for user " + currentUserEmail);
+        } catch(SQLException e) {
+            log.error("Failed to delete user transactions", e);
+            throw new ServerErrorException("Failed to delete user transactions", Response.Status.INTERNAL_SERVER_ERROR, e);
+        }
+    }
 }

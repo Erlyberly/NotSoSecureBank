@@ -4,6 +4,7 @@ function initTable(table, email) {
         type: 'GET',
         dataType: 'json',
         success: function(data) {
+            table.clear();
             var balance = 0;
             for(i=0; i<data.length; i++) {
                 var inAmount='', outAmount='', subject;
@@ -24,8 +25,8 @@ function initTable(table, email) {
                     inAmount,
                     outAmount
                 ]);
-                table.draw();
             }
+            table.draw();
             $('#balance').html(balance);
         },
         error: function() {
@@ -34,11 +35,29 @@ function initTable(table, email) {
     });
 }
 
+
 $(document).ready(function() {
     var t = $('#transactions').DataTable();
+    var loggedOnEmail;
 
     getLoggedOnUser(function(data) {
+        loggedOnEmail = data.email;
         $("#logout").html(data.firstName + " " + data.lastName + ": logg ut");
         initTable(t, data.email);
+    });
+
+    $("#deleteTransactions").click(function(event) {
+        event.preventDefault();
+
+        $.ajax({
+            url: 'webresources/user/' + loggedOnEmail + '/transaction',
+            type: 'DELETE',
+            success: function(data) {
+                initTable(t, loggedOnEmail);
+            },
+            error: function() {
+                window.location.href = "error.html";
+            }
+        });
     });
 });
