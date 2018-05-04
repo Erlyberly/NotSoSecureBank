@@ -37,7 +37,10 @@
                         <label for="inputPassword" class="sr-only">Passord</label>
                         <input type="password" id="inputPassword" class="form-control" placeholder="Passord" required>
                         <div class="alert alert-danger hide" id="wrongPasswordAlert">
-                            <strong>Feil brukernavn eller passord!</strong> 
+                            <strong>Feil brukernavn eller passord!</strong>
+                        </div>
+                        <div class="alert alert-danger hide" id="accountLockedAlert">
+                            <strong>Feil brukernavn eller passord! Kontoen er sperret i 1 minutt.</strong>
                         </div>
                         <button type="submit" class="btn btn-lg btn-primary btn-block">Logg på eller registrer</button>
                     </form>
