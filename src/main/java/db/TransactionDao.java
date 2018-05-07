@@ -76,7 +76,7 @@ public class TransactionDao {
                 statement.setString(2, email);
                 int result = statement.executeUpdate();
                 statement.close();
-                log.info("Deleted transactions " + (result == 1 ? "ok" : "failed"));
+                log.info("Deleted transactions. Result=" + result);
             } finally {
                 connection.close();
             }
