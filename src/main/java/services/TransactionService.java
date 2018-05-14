@@ -5,6 +5,7 @@ import data.Transaction;
 import db.TransactionDao;
 import db.UserDao;
 import java.sql.SQLException;
+import java.util.Date;
 import java.util.List;
 import util.Logger;
 import javax.servlet.http.HttpServletRequest;
@@ -38,7 +39,9 @@ public class TransactionService {
             throw new NotAuthorizedException("Cannot access this account", Response.Status.FORBIDDEN);
         }
 
-        checkTransactionAmount(transaction);
+        // Check if trans ok
+        double currentBalance = getCurrentBalance(transaction.getFromEmail());
+        checkTransactionAmount(transaction, currentBalance);
 
         // Add transaction
         try {
@@ -50,14 +53,14 @@ public class TransactionService {
         }
     }
 
-    private void checkTransactionAmount(Transaction transaction) {
+    private void checkTransactionAmount(Transaction transaction, double currentBalance) {
         // Check if transaction amount is ok
-        double currentBalance = getCurrentBalance(transaction.getFromEmail());
         boolean isFamily = isFamily(transaction);
         boolean isOverDrawn = currentBalance < 0;
-        boolean balanceWillBeUnderLimit = (currentBalance - transaction.getAmount()) < 5000;
+        boolean balanceWillBeUnderLimit = (currentBalance - transaction.getAmount()) < -5000;
 
         log.info("Current balance=" + currentBalance + ", isFamily=" + isFamily);
+        log.info("isOverDrawn=" + isOverDrawn + ", balanceWillBeUnderLimit=" + balanceWillBeUnderLimit);
 
         boolean ok = (!isFamily && !isOverDrawn && !balanceWillBeUnderLimit) || (isFamily && !(isOverDrawn && balanceWillBeUnderLimit));
 
@@ -126,5 +129,10 @@ public class TransactionService {
             log.error("Failed to delete user transactions", e);
             throw new ServerErrorException("Failed to delete user transactions", Response.Status.INTERNAL_SERVER_ERROR, e);
         }
+    }
+
+    public static void main(String[] args) throws Exception {
+        Transaction trans = new Transaction("nils@nilsen.no", "nils@ntnu.no", "yo", 6001d, new Date());
+        new TransactionService().checkTransactionAmount(trans, 1000d);
     }
 }
